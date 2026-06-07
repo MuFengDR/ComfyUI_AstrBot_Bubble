@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """Custom ComfyUI nodes used by astrbot_plugin_comfyui_bubble.
 
 The AstrBot plugin scans these class_type names and injects values by the
@@ -72,7 +72,7 @@ class AstrBubbleTextInput:
         return {
             "required": {
                 "index": ("INT", {"default": 1, "min": 1, "max": 999, "step": 1}),
-                "label": ("STRING", {"default": "文本输入"}),
+                "explain": ("STRING", {"default": "文本输入"}),
                 "text": ("STRING", {"default": "", "multiline": True}),
             }
         }
@@ -82,7 +82,7 @@ class AstrBubbleTextInput:
     FUNCTION = "load"
     CATEGORY = "AstrBubble/Input"
 
-    def load(self, index: int, label: str, text: str):
+    def load(self, index: int, explain: str, text: str):
         return (str(text or ""),)
 
 
@@ -92,7 +92,7 @@ class AstrBubbleImageInput:
         return {
             "required": {
                 "index": ("INT", {"default": 1, "min": 1, "max": 999, "step": 1}),
-                "label": ("STRING", {"default": "图片输入"}),
+                "explain": ("STRING", {"default": "图片输入"}),
                 "image_base64": ("STRING", {"default": "", "multiline": True}),
             }
         }
@@ -102,7 +102,7 @@ class AstrBubbleImageInput:
     FUNCTION = "load"
     CATEGORY = "AstrBubble/Input"
 
-    def load(self, index: int, label: str, image_base64: str):
+    def load(self, index: int, explain: str, image_base64: str):
         payload = _clean_base64(image_base64)
         if not payload:
             return (_blank_image(),)
@@ -116,7 +116,7 @@ class AstrBubbleVideoInput:
         return {
             "required": {
                 "index": ("INT", {"default": 1, "min": 1, "max": 999, "step": 1}),
-                "label": ("STRING", {"default": "视频输入"}),
+                "explain": ("STRING", {"default": "视频输入"}),
                 "video": ("STRING", {"default": ""}),
             }
         }
@@ -126,7 +126,7 @@ class AstrBubbleVideoInput:
     FUNCTION = "load"
     CATEGORY = "AstrBubble/Input"
 
-    def load(self, index: int, label: str, video: str):
+    def load(self, index: int, explain: str, video: str):
         return (str(video or ""),)
 
 
@@ -136,7 +136,7 @@ class AstrBubbleTextOutput:
         return {
             "required": {
                 "index": ("INT", {"default": 1, "min": 1, "max": 999, "step": 1}),
-                "label": ("STRING", {"default": "文本输出"}),
+                "explain": ("STRING", {"default": "文本输出"}),
                 "text": ("STRING", {"default": "", "forceInput": True}),
             }
         }
@@ -146,7 +146,7 @@ class AstrBubbleTextOutput:
     OUTPUT_NODE = True
     CATEGORY = "AstrBubble/Output"
 
-    def save(self, index: int, label: str, text: str):
+    def save(self, index: int, explain: str, text: str):
         return {"ui": {"text": [str(text or "")]}, "result": ()}
 
 
@@ -156,7 +156,7 @@ class AstrBubbleImageOutput:
         return {
             "required": {
                 "index": ("INT", {"default": 1, "min": 1, "max": 999, "step": 1}),
-                "label": ("STRING", {"default": "图片输出"}),
+                "explain": ("STRING", {"default": "图片输出"}),
                 "images": ("IMAGE",),
                 "filename_prefix": ("STRING", {"default": "AstrBubble"}),
             },
@@ -171,7 +171,7 @@ class AstrBubbleImageOutput:
     def save(
         self,
         index: int,
-        label: str,
+        explain: str,
         images: torch.Tensor,
         filename_prefix: str = "AstrBubble",
         prompt: Any = None,
@@ -218,7 +218,7 @@ class AstrBubbleVideoOutput:
         return {
             "required": {
                 "index": ("INT", {"default": 1, "min": 1, "max": 999, "step": 1}),
-                "label": ("STRING", {"default": "视频输出"}),
+                "explain": ("STRING", {"default": "视频输出"}),
                 "video": ("STRING", {"default": "", "forceInput": True}),
                 "filename_prefix": ("STRING", {"default": "AstrBubble"}),
             }
@@ -229,7 +229,7 @@ class AstrBubbleVideoOutput:
     OUTPUT_NODE = True
     CATEGORY = "AstrBubble/Output"
 
-    def save(self, index: int, label: str, video: str, filename_prefix: str = "AstrBubble"):
+    def save(self, index: int, explain: str, video: str, filename_prefix: str = "AstrBubble"):
         source = _resolve_video_path(video)
         if source is None:
             return {"ui": {"gifs": []}, "result": ()}
@@ -273,3 +273,4 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "AstrBubble_ImageOutput": "Bubble Image Output",
     "AstrBubble_VideoOutput": "Bubble Video Output",
 }
+

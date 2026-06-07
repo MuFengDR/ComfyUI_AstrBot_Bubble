@@ -1,4 +1,4 @@
-# ComfyUI-AstrBubble-Nodes
+﻿# ComfyUI-AstrBubble-Nodes
 
 AstrBubble nodes for `astrbot_plugin_comfyui_bubble`.
 
@@ -33,15 +33,15 @@ Output nodes:
 Every AstrBubble node has:
 
 - `index`: a positive 1-based slot number.
-- `label`: a human-readable label, such as `positive prompt`, `negative prompt`, `reference image`, or `first frame`.
+- `explain`: a human-readable explanation, such as `positive prompt`, `negative prompt`, `reference image`, or `first frame`.
 
 The AstrBot plugin scans workflow API JSON files and requires each same-direction, same-type group to be consecutively indexed from `1`.
 
 Examples:
 
-- Two text inputs: `TextInput index=1 label=positive prompt`, `TextInput index=2 label=negative prompt`.
-- Two image inputs: `ImageInput index=1 label=source image`, `ImageInput index=2 label=style reference`.
-- One image output: `ImageOutput index=1 label=result image`.
+- Two text inputs: `TextInput index=1 explain=positive prompt`, `TextInput index=2 explain=negative prompt`.
+- Two image inputs: `ImageInput index=1 explain=source image`, `ImageInput index=2 explain=style reference`.
+- One image output: `ImageOutput index=1 explain=result image`.
 
 The plugin injects by `index`, not by node creation order or JSON order. The `class_type`
 names in `nodes.py` are the public protocol and should not be renamed.
@@ -52,3 +52,4 @@ names in `nodes.py` are the public protocol and should not be renamed.
 - `AstrBubble_VideoInput` outputs a string path/name. Connect it to downstream nodes that accept a video path or filename.
 - `AstrBubble_VideoOutput` expects a string path/name and copies that file into ComfyUI's output directory so AstrBot can find it from history.
 # ComfyUI_AstrBot_Bubble
+
