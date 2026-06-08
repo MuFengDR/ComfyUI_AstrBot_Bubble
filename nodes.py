@@ -24,6 +24,14 @@ except Exception:  # pragma: no cover - only available inside ComfyUI
     folder_paths = None
 
 
+class AnyType(str):
+    def __ne__(self, other: object) -> bool:
+        return False
+
+
+ASTRBUBBLE_ANY = AnyType("*")
+
+
 def _clean_base64(value: str) -> str:
     text = str(value or "").strip()
     if "," in text and text.lower().startswith("data:"):
@@ -58,6 +66,29 @@ def _resolve_video_path(value: str) -> Path | None:
         if candidate.exists():
             return candidate
     return None
+
+
+def _iter_video_candidates(value: Any):
+    if value is None:
+        return
+    if isinstance(value, (str, os.PathLike)):
+        text = str(value).strip()
+        if text:
+            yield text
+        return
+    if isinstance(value, dict):
+        for key in ("filename", "file", "path", "video", "name"):
+            item = value.get(key)
+            if item:
+                yield from _iter_video_candidates(item)
+        for key in ("files", "videos", "gifs"):
+            item = value.get(key)
+            if item:
+                yield from _iter_video_candidates(item)
+        return
+    if isinstance(value, (list, tuple, set)):
+        for item in value:
+            yield from _iter_video_candidates(item)
 
 
 def _output_dir() -> Path:
@@ -227,7 +258,7 @@ class AstrBubbleVideoOutput:
                 "explain": ("STRING", {"default": "视频输出"}),
                 "enabled": ("BOOLEAN", {"default": True}),
                 "optional": ("BOOLEAN", {"default": False}),
-                "video": ("STRING", {"default": "", "forceInput": True}),
+                "video": (ASTRBUBBLE_ANY, {"forceInput": True}),
                 "filename_prefix": ("STRING", {"default": "AstrBubble"}),
             }
         }
@@ -237,8 +268,12 @@ class AstrBubbleVideoOutput:
     OUTPUT_NODE = True
     CATEGORY = "AstrBubble/Output"
 
-    def save(self, index: int, explain: str, enabled: bool, optional: bool, video: str, filename_prefix: str = "AstrBubble"):
-        source = _resolve_video_path(video)
+    def save(self, index: int, explain: str, enabled: bool, optional: bool, video: Any, filename_prefix: str = "AstrBubble"):
+        source = None
+        for candidate in _iter_video_candidates(video):
+            source = _resolve_video_path(candidate)
+            if source is not None:
+                break
         if source is None:
             return {"ui": {"gifs": []}, "result": ()}
         output_dir = _output_dir()
