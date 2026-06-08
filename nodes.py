@@ -13,6 +13,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import wave
 from pathlib import Path
 from typing import Any
 
@@ -86,14 +87,62 @@ def _resolve_video_path(value: str) -> Path | None:
     return None
 
 
-def _resolve_audio_path(value: Any) -> Path | None:
+def _write_audio_tensor_to_wav(value: Any) -> Path | None:
+    if not isinstance(value, dict):
+        return None
+    waveform = value.get("waveform")
+    sample_rate = int(value.get("sample_rate") or 44100)
+    if waveform is None:
+        return None
+    if isinstance(waveform, torch.Tensor):
+        array = waveform.detach().cpu().float().numpy()
+    else:
+        array = np.asarray(waveform, dtype=np.float32)
+    if array.ndim == 3:
+        array = array[0]
+    if array.ndim == 1:
+        array = array[None, :]
+    if array.ndim != 2:
+        return None
+    if array.shape[0] > array.shape[1]:
+        array = array.T
+    samples = np.clip(array, -1.0, 1.0)
+    pcm = (samples.T * 32767.0).astype(np.int16)
+    tmp = tempfile.NamedTemporaryFile(prefix="astrbubble_audio_", suffix=".wav", delete=False)
+    tmp.close()
+    path = Path(tmp.name)
+    with wave.open(str(path), "wb") as wav:
+        wav.setnchannels(int(samples.shape[0]))
+        wav.setsampwidth(2)
+        wav.setframerate(sample_rate)
+        wav.writeframes(pcm.tobytes())
+    return path
+
+
+def _resolve_audio_path(value: Any) -> tuple[Path | None, bool]:
+    wav_path = _write_audio_tensor_to_wav(value)
+    if wav_path is not None:
+        return wav_path, True
+    if isinstance(value, dict):
+        for key in ("audio", "file", "path", "filename", "name"):
+            item = value.get(key)
+            if item:
+                found, is_temp = _resolve_audio_path(item)
+                if found is not None:
+                    return found, is_temp
+        for key in ("audios", "files"):
+            item = value.get(key)
+            if item:
+                found, is_temp = _resolve_audio_path(item)
+                if found is not None:
+                    return found, is_temp
     for candidate in _iter_video_candidates(value):
         raw = str(candidate or "").strip()
         if not raw:
             continue
         path = Path(raw)
         if path.exists() and path.suffix.lower() in AUDIO_SUFFIXES:
-            return path
+            return path, False
         if folder_paths is None:
             continue
         for getter_name in ("get_input_directory", "get_output_directory", "get_temp_directory"):
@@ -102,8 +151,8 @@ def _resolve_audio_path(value: Any) -> Path | None:
                 continue
             candidate_path = Path(getter()) / raw
             if candidate_path.exists() and candidate_path.suffix.lower() in AUDIO_SUFFIXES:
-                return candidate_path
-    return None
+                return candidate_path, False
+    return None, False
 
 
 def _ffmpeg_exe() -> str:
@@ -140,7 +189,7 @@ def _save_frames_video(
     height, width = frames.shape[1], frames.shape[2]
     suffix, codec_args, _ = _video_codec_args(container, crf, pix_fmt)
     ffmpeg = _ffmpeg_exe()
-    audio_path = _resolve_audio_path(audio)
+    audio_path, audio_is_temp = _resolve_audio_path(audio)
 
     encode_target = target
     temp_video = None
@@ -190,6 +239,8 @@ def _save_frames_video(
         ]
         mux = subprocess.run(mux_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
         temp_video.unlink(missing_ok=True)
+        if audio_is_temp:
+            audio_path.unlink(missing_ok=True)
         if mux.returncode != 0:
             raise RuntimeError(mux.stderr.decode("utf-8", "ignore")[-1000:] or "ffmpeg mux failed")
 
