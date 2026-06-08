@@ -137,6 +137,8 @@ class AstrBubbleTextOutput:
             "required": {
                 "index": ("INT", {"default": 1, "min": 1, "max": 999, "step": 1}),
                 "explain": ("STRING", {"default": "文本输出"}),
+                "enabled": ("BOOLEAN", {"default": True}),
+                "optional": ("BOOLEAN", {"default": False}),
                 "text": ("STRING", {"default": "", "forceInput": True}),
             }
         }
@@ -146,7 +148,7 @@ class AstrBubbleTextOutput:
     OUTPUT_NODE = True
     CATEGORY = "AstrBubble/Output"
 
-    def save(self, index: int, explain: str, text: str):
+    def save(self, index: int, explain: str, enabled: bool, optional: bool, text: str):
         return {"ui": {"text": [str(text or "")]}, "result": ()}
 
 
@@ -157,6 +159,8 @@ class AstrBubbleImageOutput:
             "required": {
                 "index": ("INT", {"default": 1, "min": 1, "max": 999, "step": 1}),
                 "explain": ("STRING", {"default": "图片输出"}),
+                "enabled": ("BOOLEAN", {"default": True}),
+                "optional": ("BOOLEAN", {"default": False}),
                 "images": ("IMAGE",),
                 "filename_prefix": ("STRING", {"default": "AstrBubble"}),
             },
@@ -172,6 +176,8 @@ class AstrBubbleImageOutput:
         self,
         index: int,
         explain: str,
+        enabled: bool,
+        optional: bool,
         images: torch.Tensor,
         filename_prefix: str = "AstrBubble",
         prompt: Any = None,
@@ -219,6 +225,8 @@ class AstrBubbleVideoOutput:
             "required": {
                 "index": ("INT", {"default": 1, "min": 1, "max": 999, "step": 1}),
                 "explain": ("STRING", {"default": "视频输出"}),
+                "enabled": ("BOOLEAN", {"default": True}),
+                "optional": ("BOOLEAN", {"default": False}),
                 "video": ("STRING", {"default": "", "forceInput": True}),
                 "filename_prefix": ("STRING", {"default": "AstrBubble"}),
             }
@@ -229,7 +237,7 @@ class AstrBubbleVideoOutput:
     OUTPUT_NODE = True
     CATEGORY = "AstrBubble/Output"
 
-    def save(self, index: int, explain: str, video: str, filename_prefix: str = "AstrBubble"):
+    def save(self, index: int, explain: str, enabled: bool, optional: bool, video: str, filename_prefix: str = "AstrBubble"):
         source = _resolve_video_path(video)
         if source is None:
             return {"ui": {"gifs": []}, "result": ()}
@@ -273,4 +281,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "AstrBubble_ImageOutput": "Bubble Image Output",
     "AstrBubble_VideoOutput": "Bubble Video Output",
 }
+
+
+
 
