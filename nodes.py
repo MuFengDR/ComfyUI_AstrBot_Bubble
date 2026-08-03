@@ -401,7 +401,10 @@ class AstrBubbleImageInput:
                 "index": ("INT", {"default": 1, "min": 1, "max": 999, "step": 1}),
                 "explain": ("STRING", {"default": "图片输入"}),
                 "image_base64": ("STRING", {"default": "", "multiline": True}),
-            }
+            },
+            "optional": {
+                "optional": ("BOOLEAN", {"default": False}),
+            },
         }
 
     RETURN_TYPES = ("IMAGE",)
@@ -409,10 +412,11 @@ class AstrBubbleImageInput:
     FUNCTION = "load"
     CATEGORY = "AstrBubble/Input"
 
-    def load(self, index: int, explain: str, image_base64: str):
+    def load(self, index: int, explain: str, image_base64: str, optional: bool = False):
         payload = _clean_base64(image_base64)
         if not payload:
-            return (_blank_image(),)
+            kind = "可选" if optional else "必填"
+            raise ValueError(f"Bubble 图片输入 {index}（{kind}）没有收到图片")
         image = Image.open(io.BytesIO(base64.b64decode(payload)))
         return (_pil_to_tensor(image),)
 
