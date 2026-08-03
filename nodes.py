@@ -345,6 +345,34 @@ def _output_dir() -> Path:
     return Path.cwd()
 
 
+def _save_comfy_video(video: Any, filename_prefix: str, index: int) -> dict[str, str] | None:
+    """Save ComfyUI's native VIDEO object and return its history reference."""
+    save_to = getattr(video, "save_to", None)
+    get_dimensions = getattr(video, "get_dimensions", None)
+    if not callable(save_to) or not callable(get_dimensions):
+        return None
+
+    output_dir = _output_dir()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    width, height = get_dimensions()
+
+    if folder_paths is not None:
+        full_output_folder, filename, counter, subfolder, _ = folder_paths.get_save_image_path(
+            filename_prefix, str(output_dir), width, height
+        )
+        full_output_folder = Path(full_output_folder)
+        full_output_folder.mkdir(parents=True, exist_ok=True)
+        file_name = f"{filename}_{counter:05}_.mp4"
+    else:
+        full_output_folder = output_dir
+        subfolder = ""
+        safe_prefix = "".join(ch if ch.isalnum() or ch in "._-" else "_" for ch in filename_prefix)
+        file_name = f"{safe_prefix}_{index}_{os.getpid()}.mp4"
+
+    save_to(str(full_output_folder / file_name))
+    return _video_ref(file_name, subfolder, "output", "video/mp4")
+
+
 class AstrBubbleTextInput:
     @classmethod
     def INPUT_TYPES(cls):
@@ -517,6 +545,10 @@ class AstrBubbleVideoOutput:
     CATEGORY = "AstrBubble/Output"
 
     def save(self, index: int, explain: str, enabled: bool, optional: bool, video: Any, filename_prefix: str = "AstrBubble"):
+        native_ref = _save_comfy_video(video, filename_prefix, index)
+        if native_ref is not None:
+            return {"ui": {"gifs": [native_ref]}, "result": ()}
+
         refs = list(_iter_video_refs(video) or [])
         if refs:
             return {"ui": {"gifs": refs}, "result": ()}
