@@ -155,6 +155,23 @@ def _resolve_audio_path(value: Any) -> tuple[Path | None, bool]:
     return None, False
 
 
+def _load_audio_as_comfy_audio(path: Path) -> dict[str, Any]:
+    """Decode an input file into ComfyUI's AUDIO dictionary."""
+    ffmpeg = _ffmpeg_exe()
+    sample_rate = 44100
+    channels = 2
+    cmd = [ffmpeg, "-v", "error", "-i", str(path), "-f", "f32le", "-ac", str(channels), "-ar", str(sample_rate), "pipe:1"]
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    if proc.returncode != 0 or not proc.stdout:
+        raise RuntimeError(proc.stderr.decode("utf-8", "ignore")[-1000:] or "audio decode failed")
+    values = np.frombuffer(proc.stdout, dtype=np.float32)
+    usable = values.size - (values.size % channels)
+    if usable <= 0:
+        raise ValueError("audio contains no samples")
+    waveform = torch.from_numpy(values[:usable].reshape(-1, channels).T.copy()).unsqueeze(0)
+    return {"waveform": waveform, "sample_rate": sample_rate}
+
+
 def _ffmpeg_exe() -> str:
     try:
         from imageio_ffmpeg import get_ffmpeg_exe
@@ -441,6 +458,39 @@ class AstrBubbleVideoInput:
         return (str(video or ""),)
 
 
+class AstrBubbleAudioInput:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "index": ("INT", {"default": 1, "min": 1, "max": 999, "step": 1}),
+                "explain": ("STRING", {"default": "音频输入"}),
+                "audio": ("STRING", {"default": ""}),
+            },
+            "optional": {"optional": ("BOOLEAN", {"default": False})},
+        }
+
+    RETURN_TYPES = ("AUDIO",)
+    RETURN_NAMES = ("audio",)
+    FUNCTION = "load"
+    CATEGORY = "AstrBubble/Input"
+
+    def load(self, index: int, explain: str, audio: str, optional: bool = False):
+        value = str(audio or "").strip()
+        if not value and not optional:
+            raise ValueError(f"Bubble 音频输入 {index}（必填）没有收到音频")
+        if not value:
+            return ({"waveform": torch.zeros((1, 1, 1), dtype=torch.float32), "sample_rate": 44100},)
+        path, is_temp = _resolve_audio_path(value)
+        if path is None:
+            raise ValueError(f"Bubble 音频输入 {index} 找不到文件：{value}")
+        try:
+            return (_load_audio_as_comfy_audio(path),)
+        finally:
+            if is_temp:
+                path.unlink(missing_ok=True)
+
+
 class AstrBubbleTextOutput:
     @classmethod
     def INPUT_TYPES(cls):
@@ -637,6 +687,7 @@ NODE_CLASS_MAPPINGS = {
     "AstrBubble_TextInput": AstrBubbleTextInput,
     "AstrBubble_ImageInput": AstrBubbleImageInput,
     "AstrBubble_VideoInput": AstrBubbleVideoInput,
+    "AstrBubble_AudioInput": AstrBubbleAudioInput,
     "AstrBubble_TextOutput": AstrBubbleTextOutput,
     "AstrBubble_ImageOutput": AstrBubbleImageOutput,
     "AstrBubble_VideoOutput": AstrBubbleVideoOutput,
@@ -647,6 +698,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "AstrBubble_TextInput": "Bubble Text Input",
     "AstrBubble_ImageInput": "Bubble Image Input",
     "AstrBubble_VideoInput": "Bubble Video Input",
+    "AstrBubble_AudioInput": "Bubble Audio Input",
     "AstrBubble_TextOutput": "Bubble Text Output",
     "AstrBubble_ImageOutput": "Bubble Image Output",
     "AstrBubble_VideoOutput": "Bubble Video Output",
